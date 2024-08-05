@@ -1,6 +1,7 @@
 import logging # ログの追跡
 import socket # アプリケーション間の通信の出入り口
 import sys # Pythonのインタプリタや実行環境に関連した変数や関数がまとめられている
+import threading # 並列処理をさせる
 import time
 
 # logging.INFO：情報ログ
@@ -23,14 +24,33 @@ class DroneManager(object):
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # ローカルのアドレスにバインド
     self.socket.bind((self.host_ip, self.host_port))
-    # データの送信
-    self.socket.sendto(b'command', self.drone_address)
-    self.socket.sendto(b'streamon', self.drone_address)
+
+    self.response = None
+    self.stop_event = threading.Event()
+    # タプル型：要素の順番を変えず、データ型が固定の場合に使用される
+    response_thread = threading.Thread(target=self.receive_response,
+                                       args=(self.stop_event, ))
+    self._response_thread.start()
+
+    self.send_command('command')
+    self.send_command('streamon')
+
+  def receive_response(self, stop_event):
+    while not stop_event.is_set():
+      try:
+        self.response, ip = self.socket.recvfrom(3000)
+        logger.info({'action': 'receive_response',
+                    'response': self.response})
+      except socket.error as ex:
+        logger.error({'action': 'receive_response',
+                     'ex': ex})
+        break
 
   def __dell__(self):
     self.stop()
 
   def stop(self):
+    self.stop_event.set()
     # ソケットのクローズ&ファイルディスクリプタの削除
     self.socket.close()
 
@@ -51,3 +71,4 @@ if __name__ == '__main__':
   time.sleep(10)
 
   drone_manager.land()
+  drone_manager.stop()
