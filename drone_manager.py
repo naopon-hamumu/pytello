@@ -11,17 +11,19 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 DEFAULT_DISTANCE = 0.30
+DEFAULT_SPEED = 10
 
 class DroneManager(object):
     def __init__(self, host_ip='192.168.10.2', host_port=8889,
                 drone_ip='192.168.10.1', drone_port=8889,
-                is_imperial=False):
+                is_imperial=False, speed=DEFAULT_SPEED):
         self.host_ip = host_ip
         self.host_port = host_port
         self.drone_ip = drone_ip
         self.drone_port = drone_port
         self.drone_address = (drone_ip, drone_port)
         self.is_imperial = is_imperial
+        self.speed = speed
         # ソケットの作成
         # アドレスファミリー => AF_INET：IPv4インターネットプロトコル
         # ソケットタイプ => SOCK_DGRAM：UDPソケット通信で利用される
@@ -38,6 +40,7 @@ class DroneManager(object):
 
         self.send_command('command')
         self.send_command('streamon')
+        self.set_speed(self.speed)
 
     def receive_response(self, stop_event):
         while not stop_event.is_set():
@@ -94,10 +97,14 @@ class DroneManager(object):
     def back(self, distance=DEFAULT_DISTANCE):
         return self.move('back', distance)
 
+    def set_speed(self, speed):
+        return self.send_command(f'speed {speed}')
+
 if __name__ == '__main__':
     drone_manager = DroneManager()
-    drone_manager.takeoff()
 
+    drone_manager.set_speed(100)
+    drone_manager.takeoff()
     time.sleep(10)
     drone_manager.forward()
     time.sleep(5)
@@ -107,6 +114,8 @@ if __name__ == '__main__':
     time.sleep(5)
     drone_manager.left()
     time.sleep(5)
+    drone_manager.set_speed(10)
+    time.sleep(1)
     drone_manager.up()
     time.sleep(5)
     drone_manager.down()
