@@ -1,14 +1,12 @@
 import logging # ログの追跡
 import contextlib # try文の省略をさせる
 import socket # アプリケーション間の通信の出入り口
-import sys # Pythonのインタプリタや実行環境に関連した変数や関数がまとめられている
 import threading # 並列処理をさせる
 import time
 
 # logging.INFO：情報ログ
 # sys.stdout：print関数よりもよりシステマチックな標準出力
 # sys自体がprint関数よりもさまざまなことができる
-logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 DEFAULT_DISTANCE = 0.30
@@ -172,18 +170,3 @@ class DroneManager(object):
                     time.sleep(5)
         else:
             logger.warning({'action': '_patrol', 'status': 'not_acquire'})
-
-if __name__ == '__main__':
-    drone_manager = DroneManager()
-
-    drone_manager.set_speed(100)
-    drone_manager.takeoff()
-    time.sleep(10)
-
-    drone_manager.patrol()
-    time.sleep(10)
-    drone_manager.stop_patrol()
-    time.sleep(5)
-
-    drone_manager.land()
-    drone_manager.stop()
