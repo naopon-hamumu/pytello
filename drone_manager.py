@@ -1,4 +1,5 @@
 import logging # ログの追跡
+import contextlib # try文の省略をさせる
 import socket # アプリケーション間の通信の出入り口
 import sys # Pythonのインタプリタや実行環境に関連した変数や関数がまとめられている
 import threading # 並列処理をさせる
@@ -39,6 +40,11 @@ class DroneManager(object):
                                         args=(self.stop_event, ))
         self._response_thread.start()
 
+        self.patrol_event = None
+        self.is_patrol = False
+        self._patrol_semaphore = threading.Semaphore(1)
+        self._thread_patrol = None
+
         self.send_command('command')
         self.send_command('streamon')
         self.set_speed(self.speed)
@@ -65,6 +71,13 @@ class DroneManager(object):
     def send_command(self, command):
         logger.info({'action': 'send_command', 'command': command})
         self.socket.sendto(command.encode('utf-8'), self.drone_address)
+
+        if self.response is None:
+            response = None
+        else:
+            response = self.response.decode('utf-8')
+        self.response = None
+        return response
 
     def takeoff(self):
         self.send_command('takeoff')
@@ -119,6 +132,47 @@ class DroneManager(object):
     def flip_right(self):
         return self.send_command('flip r')
 
+    def patrol(self):
+        if not self.is_patrol:
+            self.patrol_event = threading.Event()
+            self._thread_patrol = threading.Thread(
+                target=self._patrol,
+                args=(self._patrol_semaphore, self.patrol_event,))
+            self._thread_patrol.start()
+            self.is_patrol = True
+
+    def stop_patrol(self):
+        if self.is_patrol:
+            self.patrol_event.set()
+            retry = 0
+            while self._thread_patrol.is_alive():
+                time.sleep(0.3)
+                if retry > 300:
+                    break
+                retry += 1
+                self.is_patrol = False
+
+    def _patrol(self, semaphore, stop_event):
+        is_acquire = semaphore.acquire(blocking=False)
+        if is_acquire:
+            logger.info({'action': '_patrol', 'status': 'acquire'})
+            with contextlib.ExitStack() as stack:
+                stack.callback(semaphore.release)
+                status = 0
+                while not stop_event.is_set():
+                    status += 1
+                    if status == 1:
+                        self.up()
+                    if status == 2:
+                        self.clockwise(90)
+                    if status == 3:
+                        self.down()
+                    if status == 4:
+                        status = 0
+                    time.sleep(5)
+        else:
+            logger.warning({'action': '_patrol', 'status': 'not_acquire'})
+
 if __name__ == '__main__':
     drone_manager = DroneManager()
 
@@ -126,13 +180,9 @@ if __name__ == '__main__':
     drone_manager.takeoff()
     time.sleep(10)
 
-    drone_manager.flip_front()
-    time.sleep(5)
-    drone_manager.flip_back()
-    time.sleep(5)
-    drone_manager.flip_left()
-    time.sleep(5)
-    drone_manager.flip_right()
+    drone_manager.patrol()
+    time.sleep(10)
+    drone_manager.stop_patrol()
     time.sleep(5)
 
     drone_manager.land()
