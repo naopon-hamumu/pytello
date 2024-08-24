@@ -7,8 +7,25 @@
   }
 </style>
 
+<script>
+  function sendCommand(command, params={}) {
+    console.log({action: 'sendCommand', command: command, params: params})
+    params['command'] = command
+    $.post("/api/command/", params).done(function (json) {
+      console.log({action: 'sendCommand', json: json})
+    }, 'json')
+  }
+</script>
+
 <div class="controller-box">
   <h1>Remote Controller</h1>
+</div>
+
+<div class="controller-box">
+  <div data-role="controlgroup" data-type="horizontal">
+    <a href="#" data-role="button" onclick="sendCommand('takeOff'); return false;">Take Off</a>
+    <a href="#" data-role="button" onclick="sendCommand('land'); return false;">Land</a>
+  </div>
 </div>
 
 {% endblock %}
