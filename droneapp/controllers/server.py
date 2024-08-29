@@ -12,7 +12,7 @@ app = config.app
 def index():
     return render_template('index.html')
 
-@app.route('/controllers/')
+@app.route('/controller/')
 def controller():
     return render_template('controller.html')
 
@@ -20,6 +20,9 @@ def controller():
 def command():
     cmd = request.form.get('command')
     logger.info({'action': 'command', 'cmd': cmd})
+    if cmd == 'speed':
+        speed = request.form.get('speed')
+        logger.info({'action': 'command', 'cmd': cmd, 'speed': speed})
     return jsonify(status='success'), 200
 
 def run():
